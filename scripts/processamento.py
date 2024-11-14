@@ -12,8 +12,8 @@ class MongoDatabase:
         self.db_password = os.getenv("DB_PASSWORD")
         self.cluster_url =  os.getenv("CLUSTER_URL")
 
-        if not self.db_password:
-            raise ValueError("DB_PASSWORD not found in environment variables.")
+        if not self.db_password or not self.cluster_url:
+            raise ValueError("DB_PASSWORD or CLUSTER_URL not found in environment variables.")
 
         self.uri = f"mongodb+srv://{username}:{self.db_password}@{self.cluster_url}/?retryWrites=true&w=majority&appName={cluster_name}"
         self.client = None
