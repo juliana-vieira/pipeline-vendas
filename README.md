@@ -1,4 +1,4 @@
-# Pipeline utilizando MongoDB em nuvem
+# Pipeline de dados utilizando MongoDB em nuvem
 
 Este repositório implementa um pipeline em Python que extrai dados de APIs e armazena em um banco de dados MongoDB Atlas, o banco de dados Mongo na nuvem. O pipeline realiza transformações nos dados (como renomear colunas, formatar datas), converte os dados para um DataFrame e os salva em formato CSV. O pipeline utiliza técnicas de Programação Orientada a Objetos (POO) para abstrair os processos e possibilita a extração de dados de qualquer API, bastando configurar um dicionário `config` com as informações necessárias.
 
