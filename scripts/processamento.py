@@ -9,15 +9,15 @@ load_dotenv()
 
 class MongoDatabase:
 
-    def __init__(self, username, cluster_name):
-        self.db_password = os.getenv("DB_PASSWORD")
-        self.cluster_url =  os.getenv("CLUSTER_URL")
+    def __init__(self, db_name, collection_name):
+        self.uri = os.getenv("MONGO_URI")
 
-        if not self.db_password or not self.cluster_url:
-            raise ValueError("Environment variables not found in .env file.")
+        if not self.uri:
+            raise ValueError("Environment variable not found in .env file: MONGO_URI")
         
-        self.uri = f"mongodb+srv://{username}:{self.db_password}@{self.cluster_url}/?retryWrites=true&w=majority&appName={cluster_name}"
         self.client = None
+        self.db_name = db_name
+        self.collection_name = collection_name
     
     def connectMongo(self):
 
@@ -30,17 +30,16 @@ class MongoDatabase:
         except Exception as e:
             print(e)
 
-    def get_db(self, db_name):
+    def get_db(self):
 
         if not self.client:
             raise ValueError("The connection with Mongo Atlas was not established. Please connect to Mongo Atlas before creating a database.")
 
-        return self.client[db_name]
+        return self.client[self.db_name]
     
-    @staticmethod
-    def get_collection(db, collection_name):
+    def get_collection(self, db):
 
-        return db[collection_name]
+        return db[self.collection_name]
     
     def close_connection(self):
 
@@ -59,8 +58,9 @@ class MongoDatabase:
 
 class Data:
 
-    def __init__(self):
+    def __init__(self, collection):
         self.data = None
+        self.collection = collection
 
     def extract_api_data(self, endpoint):
 
@@ -84,22 +84,21 @@ class Data:
             print(f"Erro na solicitação da API: {req_error}")
             self.data = None
 
-    def insert_data_db(self, collection):
+    def insert_data_db(self):
             
         if self.data is None:
             raise ValueError("No data was extracted.")
         
-        elif collection.count_documents({}) > 0:
+        elif self.collection.count_documents({}) > 0:
             print("Information: This collection is already populated. If you need to insert more data, please create another collection.")
             return
         
-        docs = collection.insert_many(self.data)
+        docs = self.collection.insert_many(self.data)
         print("The data was inserted successfully!")
 
         return docs
     
-    @staticmethod
-    def get_index_names(collection):
+    def get_index_names(self):
 
         try:
             agg = [
@@ -108,20 +107,19 @@ class Data:
                 {"$group": {"_id": None, "distinctKeys": {"$addToSet": "$keys.k"}}},
             ]
 
-            result = list(collection.aggregate(agg))
+            result = list(self.collection.aggregate(agg))
 
             return result[0]["distinctKeys"]
         
         except Exception as e:
             print(e)
     
-    @staticmethod
-    def get_collection_data(collection):
+    def get_collection_data(self):
 
         doc_list = []
 
         try:
-            for doc in collection.find():
+            for doc in self.collection.find():
                 doc_list.append(doc)
 
             return doc_list
@@ -129,23 +127,22 @@ class Data:
         except Exception as e:
             print(e)
 
-    def rename_index(self, collection, index_name, new_name):
+    def rename_index(self, index_name, new_name):
         try:
             
-            if new_name in self.get_index_names(collection):
+            if new_name in self.get_index_names(self.collection):
 
                 print(f'The column name "{new_name}" is already present in the database.')
                 return
             else:
 
-                collection.update_many({}, {"$rename" : {index_name : new_name}})
+                self.collection.update_many({}, {"$rename" : {index_name : new_name}})
             print(f'Column renamed successfully from "{index_name}" to "{new_name}"')
 
         except Exception as e:
             print(e)
 
-    @staticmethod
-    def select_items(collection, query_type, field, item):
+    def select_items(self, query_type, field, item):
 
         result = []
 
@@ -156,7 +153,7 @@ class Data:
             elif query_type == "string":
                 query = {field : item}
 
-            for doc in collection.find(query):
+            for doc in self.collection.find(query):
                 result.append(doc)
 
             return result
