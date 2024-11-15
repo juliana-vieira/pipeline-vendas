@@ -6,13 +6,13 @@ config = {
     "collection_name" : "colecao-teste-04"
 }
 
-# Criando o banco de dados e a coleção no MongoDB Atlas
-mongo_client = MongoDatabase(config["db_name"], config["collection_name"])
+# Criando o Mongo Client e se conectando no cluster do Mongo Atlas
+mongo_client = MongoDatabase()
 mongo_client.connectMongo()
 
-# Obtendo o banco e a coleção. Caso já existam, os métodos só irão se conectar no banco e na coleção
-db = mongo_client.get_db()
-collection = mongo_client.get_collection(db)
+# Criando o banco e a coleção. Caso já existam, os métodos só irão se conectar no banco e na coleção
+db = mongo_client.get_db(config["db_name"])
+collection = mongo_client.get_collection(db, config["collection_name"])
 
 # Criando um objeto da coleção e extraindo os dados da API
 dados = Data(collection)

@@ -9,15 +9,13 @@ load_dotenv()
 
 class MongoDatabase:
 
-    def __init__(self, db_name, collection_name):
+    def __init__(self):
         self.uri = os.getenv("MONGO_URI")
 
         if not self.uri:
             raise ValueError("Environment variable not found in .env file: MONGO_URI")
         
         self.client = None
-        self.db_name = db_name
-        self.collection_name = collection_name
     
     def connectMongo(self):
 
@@ -30,16 +28,17 @@ class MongoDatabase:
         except Exception as e:
             print(e)
 
-    def get_db(self):
+    def get_db(self, db_name):
 
         if not self.client:
             raise ValueError("The connection with Mongo Atlas was not established. Please connect to Mongo Atlas before creating a database.")
-
-        return self.client[self.db_name]
+        
+        return self.client[db_name]
     
-    def get_collection(self, db):
+    @staticmethod
+    def get_collection(db, collection_name):
 
-        return db[self.collection_name]
+        return db[collection_name]
     
     def close_connection(self):
 
