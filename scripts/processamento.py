@@ -70,7 +70,7 @@ class Data:
 
             try:
                 self.data = response.json()
-                
+
                 if not self.data:
                     raise ValueError("A API retornou um JSON vazio.")
                 
@@ -129,7 +129,7 @@ class Data:
         except Exception as e:
             print(e)
 
-    def rename_column(self, collection, column_name, new_name):
+    def rename_index(self, collection, index_name, new_name):
         try:
             
             if new_name in self.get_index_names(collection):
@@ -138,8 +138,8 @@ class Data:
                 return
             else:
 
-                collection.update_many({}, {"$rename" : {column_name : new_name}})
-            print(f'Column renamed successfully from "{column_name}" to "{new_name}"')
+                collection.update_many({}, {"$rename" : {index_name : new_name}})
+            print(f'Column renamed successfully from "{index_name}" to "{new_name}"')
 
         except Exception as e:
             print(e)
@@ -172,10 +172,11 @@ class Data:
         return df
     
     @staticmethod
-    def format_date(df, column_date):
+    def format_date(df, column_date, date_format):
 
         try:
             df[column_date] = pd.to_datetime(df[column_date], format = "%d/%m/%Y")
+            df[column_date] = df[column_date].dt.strftime(date_format)
             print("Date formatted successfully.")
             return df
 
