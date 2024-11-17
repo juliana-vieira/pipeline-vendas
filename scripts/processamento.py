@@ -1,6 +1,8 @@
 import requests
-import pandas as pd
 import os
+import mysql.connector
+import pandas as pd
+import numpy as np
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
@@ -55,6 +57,72 @@ class MongoDatabase:
         else:
             print("No active MongoDB connection to close.")
 
+class MysqlDatabase:
+
+     def __init__(self):
+         self.host = os.getenv("MYSQL_HOST")
+         self.username = os.getenv("MYSQL_USERNAME")
+         self.password = os.getenv("MYSQL_PASSWORD")
+
+         if not self.host or not self.username or not self.password:
+             raise ValueError("Environment variables not found in .env file.")
+
+         self.cursor = None
+         self.db_name = None
+
+     def connect_mysql(self):
+
+         cnx  = mysql.connector.connect(
+             host = self.host,
+             user = self.username,
+             password = self.password
+         )
+        
+         return cnx
+
+     def create_cursor(self, cnx):
+
+         self.cursor = cnx.cursor()
+         return self.cursor
+
+     def create_database(self, db_name):
+
+        self.db_name = db_name
+        try:
+            self.cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name};")
+            print("Success")
+
+        except Exception as e:
+            print(e)
+
+
+     def show_databases(self):
+
+        self.cursor.execute("SHOW DATABASES;")
+        for db in self.cursor:
+            print(db)
+
+     def create_tables(self, tb_name, columns):
+
+        query = """
+                CREATE TABLE IF NOT EXISTS %s.%s (
+                    PRIMARY KEY (_id),
+                """ % (self.db_name, tb_name)
+        
+        sql_columns = []
+
+        for column_name, column_type in columns.items():
+            sql_columns.append(f"{column_name} {column_type}")
+             
+        query += ", ".join(sql_columns) + ");"
+
+        try:
+            self.cursor.execute(query)
+            print("MySQL Table created successfully!")
+
+        except Exception as e:
+            print(e)
+        
 class Data:
 
     def __init__(self, collection):
@@ -129,7 +197,7 @@ class Data:
     def rename_index(self, index_name, new_name):
         try:
             
-            if new_name in self.get_index_names(self.collection):
+            if new_name in self.get_index_names():
 
                 print(f'The column name "{new_name}" is already present in the database.')
                 return
@@ -168,12 +236,37 @@ class Data:
         return df
     
     @staticmethod
+    def dtype_to_sql(df_dict):
+
+        sql_type = {}
+        df_type = {}
+
+        mapping = {
+             np.object_: "VARCHAR(100)",
+             np.float64: "FLOAT(10,2)",
+             np.int64: "INT",
+             np.datetime64: "DATE"
+        }
+
+        df_type = {key : df.dtypes.apply(lambda x: x.type).to_dict() for key, df in df_dict.items()}
+
+        sql_type = {inner_key : mapping.get(inner_value) 
+                    for outer_key, inner_dict in df_type.items() 
+                    for inner_key, inner_value in inner_dict.items()}
+        
+        sql_formatted = {column_name.replace(" ", "_") : column_type for column_name, column_type in sql_type.items()}
+
+        return sql_formatted
+
+    @staticmethod
     def format_date(df, column_date, date_format):
 
         try:
-            df[column_date] = pd.to_datetime(df[column_date], format = "%d/%m/%Y")
+            df[column_date] = pd.to_datetime(df[column_date], format = 'mixed')
             df[column_date] = df[column_date].dt.strftime(date_format)
+            df[column_date] = pd.to_datetime(df[column_date], format = 'mixed')
             print("Date formatted successfully.")
+
             return df
 
         except Exception as e:
