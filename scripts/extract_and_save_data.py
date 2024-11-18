@@ -46,9 +46,6 @@ df_vendas_2021 = dados.to_dataframe(vendas_2021)
 df_formatados = {"df_livros" : dados.format_date(df_livros, "Data da Compra", "%Y-%m-%d"),
                   "df_2021_em_diante": dados.format_date(df_vendas_2021, "Data da Compra", "%Y-%m-%d")}
 
-colunas_sql = dados.dtype_to_sql(df_formatados)
-print(colunas_sql)
-
 # Salvando os dados no formato csv
 for key, item in df_formatados.items():
        dados.save_csv(item, f"data/{key}.csv")
@@ -66,9 +63,12 @@ mysql_db.create_database("TESTE")
 # Verificando se o banco foi criado
 mysql_db.show_databases()
 
-# Criando a tabela
+# Convertendo os tipos de dados para os tipos SQL
+colunas_sql = dados.dtype_to_sql(df_formatados)
+
+# Criando a tabela com os tipos convertidos
 mysql_db.create_tables("tb_produtos", colunas_sql)
 
 # Extraindo os dados dos arquivos csv e inserindo no banco de dados
-# dados.extract_csv_data()
-# mysql_db.insert_data_mysql()
+dados_livros = dados.extract_csv_data("data/df_livros.csv")
+mysql_db.insert_data_mysql(cnx, "tb_produtos", dados_livros)

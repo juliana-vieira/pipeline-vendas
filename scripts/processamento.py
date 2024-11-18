@@ -59,7 +59,7 @@ class MongoDatabase:
 
 class MysqlDatabase:
 
-     def __init__(self):
+    def __init__(self):
          self.host = os.getenv("MYSQL_HOST")
          self.username = os.getenv("MYSQL_USERNAME")
          self.password = os.getenv("MYSQL_PASSWORD")
@@ -70,7 +70,7 @@ class MysqlDatabase:
          self.cursor = None
          self.db_name = None
 
-     def connect_mysql(self):
+    def connect_mysql(self):
 
          cnx  = mysql.connector.connect(
              host = self.host,
@@ -80,12 +80,12 @@ class MysqlDatabase:
         
          return cnx
 
-     def create_cursor(self, cnx):
+    def create_cursor(self, cnx):
 
          self.cursor = cnx.cursor()
          return self.cursor
 
-     def create_database(self, db_name):
+    def create_database(self, db_name):
 
         self.db_name = db_name
         try:
@@ -96,13 +96,13 @@ class MysqlDatabase:
             print(e)
 
 
-     def show_databases(self):
+    def show_databases(self):
 
         self.cursor.execute("SHOW DATABASES;")
         for db in self.cursor:
             print(db)
 
-     def create_tables(self, tb_name, columns):
+    def create_tables(self, tb_name, columns):
 
         query = """
                 CREATE TABLE IF NOT EXISTS %s.%s (
@@ -122,7 +122,20 @@ class MysqlDatabase:
 
         except Exception as e:
             print(e)
-        
+    
+    def insert_data_mysql(self, cnx, tb_name, lista_dados):
+        qtd_columns = ', '.join(['%s'] * len(lista_dados[0]))
+
+        sql = f"INSERT IGNORE INTO {self.db_name}.{tb_name} VALUES ({qtd_columns});"
+
+        try:
+            self.cursor.executemany(sql, lista_dados)
+            cnx.commit()
+            print(f"Data inserted successfully into the database: {self.db_name}")
+        except Exception as e:
+            print(e)
+            cnx.rollback()
+
 class Data:
 
     def __init__(self, collection):
@@ -276,8 +289,18 @@ class Data:
     def save_csv(df, path):
 
         try:
-            df.to_csv(path)
+            df.to_csv(path, index = False)
             print("Data saved successfully as a csv file.")
 
         except Exception as e:
             print(e)
+
+    @staticmethod
+    def extract_csv_data(path):
+
+        df = pd.read_csv(path)
+
+        data_list = [tuple(row) for i, row in df.iterrows()]
+
+        return data_list
+
