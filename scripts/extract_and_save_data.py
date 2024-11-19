@@ -1,4 +1,7 @@
-from processamento import MongoDatabase, Data, MysqlDatabase
+from api import APIHandler
+from db_mongo import MongoDatabase
+from db_mysql import MysqlDatabase
+from processamento import DataProcessor
 
 config = {
     "url_api" : "https://labdados.com/produtos",
@@ -14,61 +17,58 @@ mongo_client.connectMongo()
 db = mongo_client.get_db(config["db_name"])
 collection = mongo_client.get_collection(db, config["collection_name"])
 
-# Criando um objeto da coleção e extraindo os dados da API
-dados = Data(collection)
-dados.extract_api_data(config["url_api"])
+# Extraindo os dados da API
+api_handler = APIHandler(config["url_api"])
+dados_api = api_handler.extract_api_data()
 
-# Inserindo a coleção no banco de dados
-dados.insert_data_db()
+# Inserindo os dados no MongoDB
+mongo_client.insert_data_db(dados_api)
 
 # Extraindo informações sobre os índices da base de dados
-nomes_index = dados.get_index_names()
+nomes_index = mongo_client.get_index_names()
 print(f"Nomes dos índices: {nomes_index}\n")
 
 # Transformando os dados - renomeando as colunas "lat" e "lon" para melhor entendimento
-dados.rename_index("lat", "Latitude")
-dados.rename_index("lon", "Longitude")
-index_renomeado = dados.get_index_names()
-print(f"Nomes dos índices: {index_renomeado}\n")
+mongo_client.rename_index("lat", "Latitude")
+mongo_client.rename_index("lon", "Longitude")
 
 # Extraindo os dados necessários para o contexto da análise
-categoria_livros = dados.select_items("string", "Categoria do Produto", "livros")
-vendas_2021 = dados.select_items("regex", "Data da Compra", "/202[1-9]")
+categoria_livros = mongo_client.select_items("string", "Categoria do Produto", "livros")
+vendas_2021 = mongo_client.select_items("regex", "Data da Compra", "/202[1-9]")
 
 # Encerrando a conexão com o banco após a conclusão de todas as operações nele
 mongo_client.close_connection()
 
 # Convertendo os dados obtidos para um dataframe pandas
-df_livros = dados.to_dataframe(categoria_livros)
-df_vendas_2021 = dados.to_dataframe(vendas_2021)
+df_livros = DataProcessor.to_dataframe(categoria_livros)
+df_vendas_2021 = DataProcessor.to_dataframe(vendas_2021)
 
 #  Formatando a coluna "data" para datetime
-df_formatados = {"df_livros" : dados.format_date(df_livros, "Data da Compra", "%Y-%m-%d"),
-                  "df_2021_em_diante": dados.format_date(df_vendas_2021, "Data da Compra", "%Y-%m-%d")}
+df_formatados = {"df_livros" : DataProcessor.format_date(df_livros, "Data da Compra", "%Y-%m-%d"),
+                  "df_2021_em_diante": DataProcessor.format_date(df_vendas_2021, "Data da Compra", "%Y-%m-%d")}
 
 # Salvando os dados no formato csv
 for key, item in df_formatados.items():
-       dados.save_csv(item, f"data/{key}.csv")
+       DataProcessor.save_csv(item, f"data/{key}.csv")
 
 # Conectando ao MySQL
 mysql_db = MysqlDatabase()
 cnx = mysql_db.connect_mysql()
 
-# Criando um cursor para manipular o banco
+# Criando um cursor para manipular o banco de dados MySQL
 mysql_db.create_cursor(cnx)
 
 # Criando o banco de dados MySQL
 mysql_db.create_database("TESTE")
 
-# Verificando se o banco foi criado
-mysql_db.show_databases()
-
 # Convertendo os tipos de dados para os tipos SQL
-colunas_sql = dados.dtype_to_sql(df_formatados)
+colunas_sql = DataProcessor.dtype_to_sql(df_formatados)
 
 # Criando a tabela com os tipos convertidos
 mysql_db.create_tables("tb_produtos", colunas_sql)
 
 # Extraindo os dados dos arquivos csv e inserindo no banco de dados
-dados_livros = dados.extract_csv_data("data/df_livros.csv")
+dados_livros = DataProcessor.extract_csv_data("data/df_livros.csv")
+dados_2021_em_diante = DataProcessor.extract_csv_data("data/df_2021_em_diante.csv")
 mysql_db.insert_data_mysql(cnx, "tb_produtos", dados_livros)
+mysql_db.insert_data_mysql(cnx, "tb_produtos", dados_2021_em_diante)
